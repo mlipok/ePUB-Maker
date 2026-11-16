@@ -16,3 +16,11 @@ UDF/**/*.dll
 BackUp/
 bin/
 .SciTE_Dynamic_*
+
+# Local AutoIt instructions. The installation map is intentionally published
+# for the first prototype; the other shared instruction files stay local.
+AGENTS.md
+AGENTS_AutoIt3_Best_coding_practices.md
+AGENTS_AutoIt3_Function_notes.md
+AGENTS_AutoIt3_rules.md
+AGENTS_AutoIt3_UDF-spec.md
