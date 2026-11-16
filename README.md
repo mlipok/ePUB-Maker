@@ -45,4 +45,14 @@ For local WebView2 execution, the matching x86/x64 `WebView2Loader.dll` files ar
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+The ePUB Maker source code and original project documentation are licensed under the MIT License. See [LICENSE](LICENSE).
+
+The copied `AGENTS*.md` files are shared AutoIt project instructions from [AutoIt3-AGENTS.md](https://github.com/mlipok/AutoIt3-AGENTS.md). They must retain their original attribution, source links and licensing notices. Original material from that project is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as described by its [LICENSE.md](https://github.com/mlipok/AutoIt3-AGENTS.md/blob/main/LICENSE.md).
+
+The following copied documents are excluded from the CC BY 4.0 grant and remain subject to their original terms:
+
+- `AGENTS_AutoIt3_Best_coding_practices.md` — AutoIt Wiki source and its original terms;
+- `AGENTS_AutoIt3_Function_notes.md` — AutoIt documentation and the AutoIt EULA;
+- `AGENTS_AutoIt3_UDF-spec.md` — AutoIt Wiki source and its original terms.
+
+When redistributing these instruction files, preserve the notices and source links. The accompanying [AutoIt-EULA.md](AutoIt-EULA.md) is retained for the AutoIt documentation covered by the EULA. Using the instructions does not relicense the ePUB Maker source or any independent project code under CC BY 4.0.

@@ -39,3 +39,11 @@ Z:\AutoItPortable\App\Au3Check.exe
 ```
 
 The source file must remain UTF-8 without BOM and use CRLF line endings.
+
+## Licensing
+
+The ePUB Maker source code and original project documentation are licensed under MIT; see [LICENSE](LICENSE).
+
+The copied AutoIt instruction files come from [AutoIt3-AGENTS.md](https://github.com/mlipok/AutoIt3-AGENTS.md). Retain their attribution, source links and licensing notices. The original material from that repository is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+`AGENTS_AutoIt3_Best_coding_practices.md`, `AGENTS_AutoIt3_Function_notes.md` and `AGENTS_AutoIt3_UDF-spec.md` are excluded from that CC BY 4.0 grant and remain subject to their original terms. Keep [AutoIt-EULA.md](AutoIt-EULA.md) with the copied AutoIt documentation and do not treat these reference files as MIT-licensed ePUB Maker code.
