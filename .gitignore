@@ -1,0 +1,18 @@
+# The UDF directory is a local synchronized copy. Obtain it from the source
+# location documented in README.md instead of publishing a duplicate copy.
+UDF/*.au3
+UDF/*.md
+UDF/*.txt
+UDF/*.dll
+UDF/**/*.au3
+UDF/**/*.md
+UDF/**/*.txt
+UDF/**/*.dll
+
+# Local AutoIt build output
+*.exe
+*.a3x
+*.log
+BackUp/
+bin/
+.SciTE_Dynamic_*
