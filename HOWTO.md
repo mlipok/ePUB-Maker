@@ -23,13 +23,11 @@ For each test case, keep:
 
 The first prototype is a resource extractor, not yet a complete web-to-EPUB converter. It does not process MHTML or create the EPUB container, package metadata, XHTML spine, or table of contents.
 
-## Local WebView2 UDF copy
+## Project instructions and local WebView2 UDF copy
 
-The `UDF` directory is a local synchronized copy and is not intended for GitHub publication. Refresh it from:
+The shared AutoIt project instructions are maintained in [AutoIt3-AGENTS.md](https://github.com/mlipok/AutoIt3-AGENTS.md). Synchronize the current `AGENTS*.md` files from that repository when preparing or maintaining this project.
 
-```text
-Z:\!!!_SVN_AU3\UDF_AI\WebView2\
-```
+The `UDF` directory is a local synchronized copy of the WebView2 UDF and is not intended for GitHub publication. Keep it synchronized with the separately maintained WebView2 UDF source used for local development. The matching WebView2Loader files are also local-only runtime dependencies.
 
 ## Development checks
 

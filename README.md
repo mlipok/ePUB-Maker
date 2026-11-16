@@ -27,13 +27,9 @@ The output folder is intentionally selected separately from the source folder. E
 
 The local `UDF` directory contains a synchronized working copy of the WebView2 UDF used by the wider project. These copied files are intentionally excluded from GitHub publication by `.gitignore`.
 
-To obtain them, copy the current files from:
+The AutoIt project instructions are maintained in the separate [AutoIt3-AGENTS.md](https://github.com/mlipok/AutoIt3-AGENTS.md) repository. Synchronize the current `AGENTS*.md` instructions from that project when setting up or updating this project.
 
-```text
-Z:\!!!_SVN_AU3\UDF_AI\WebView2\
-```
-
-The project does not publish a second copy of that UDF. The extractor itself does not require WebView2 in this first prototype.
+The project does not publish a second copy of the WebView2 UDF. The extractor itself does not require WebView2 for local-file extraction, but the browser preview requires the synchronized local UDF and matching WebView2Loader files.
 
 For local WebView2 execution, the matching x86/x64 `WebView2Loader.dll` files are kept outside Git publication under `bin\x86\` and `bin\x64\`. Obtain them from the corresponding `bin` directory in the WebView2 source project.
 
