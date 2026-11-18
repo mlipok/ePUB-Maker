@@ -23,15 +23,21 @@ The application is written in AutoIt and has an English user interface. It curre
 
 The output folder is intentionally selected separately from the source folder. Existing files with generated names are overwritten in that selected output folder.
 
-## UDF dependency
+## WebView2 UDF dependency
 
-The local `UDF` directory contains a synchronized working copy of the WebView2 UDF used by the wider project. These copied files are intentionally excluded from GitHub publication by `.gitignore`.
+The ePUB Maker requires the native WebView2 UDF for AutoIt.
 
-The AutoIt project instructions are maintained in the separate [AutoIt3-AGENTS.md](https://github.com/mlipok/AutoIt3-AGENTS.md) repository. Synchronize the current `AGENTS*.md` instructions from that project when setting up or updating this project.
+Download the current UDF from:
 
-The project does not publish a second copy of the WebView2 UDF. The extractor itself does not require WebView2 for local-file extraction, but the browser preview requires the synchronized local UDF and matching WebView2Loader files.
+https://github.com/mlipok/WebView2.au3-NativeAutoIt3-UDF
 
-For local WebView2 execution, the matching x86/x64 `WebView2Loader.dll` files are kept outside Git publication under `bin\x86\` and `bin\x64\`. Obtain them from the corresponding `bin` directory in the WebView2 source project.
+Copy the required UDF files into the local `UDF` directory of this project.
+
+If the local `UDF` directory is present, it is ignored by Git and is not tracked, published, or synchronized by this repository. The ePUB Maker repository does not contain a copy of the WebView2 UDF. The user is responsible for downloading and updating this dependency separately.
+
+The matching `WebView2Loader.dll` files are also required for the browser preview.
+
+The AutoIt project instructions are maintained separately in [AutoIt3-AGENTS.md](https://github.com/mlipok/AutoIt3-AGENTS.md). Synchronize the current `AGENTS*.md` instructions from that project when setting up or updating this project.
 
 ## Scope and limitations
 
