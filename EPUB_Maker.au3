@@ -6,26 +6,30 @@
 #include <GuiListView.au3>
 #include <ListViewConstants.au3>
 #include <MsgBoxConstants.au3>
-#include <StaticConstants.au3>
+#include <APIGdiConstants.au3>
+#include <WinAPIGdi.au3>
 #include <WindowsConstants.au3>
+#include <WindowsNotifsConstants.au3>
 
 #include "UDF\WebView2.au3"
 
 Opt("MustDeclareVars", 1)
 
 Global Const $g_sApplicationName = "ePUB Maker - Base64 resource extractor"
-Global Const $g_sVersion = "0.1.0"
+Global Const $g_sVersion = "0.1.1"
 Global Const $g_iMainBackgroundColor = 0xC0C0C0
 Global Const $g_iButtonBackgroundColor = 0xD6D6D6
 Global Const $g_iEditBackgroundColor = 0xF7F7F7
 Global $g_iWebView = -1
+Global $g_bLayoutPending = True
 Global $g_asListedFiles[1] = [0]
 
 Main()
 
 Func Main()
 	Local $hGUI = GUICreate($g_sApplicationName & " " & $g_sVersion, 1300, 800, -1, -1, BitOR($WS_OVERLAPPEDWINDOW, $WS_CLIPCHILDREN))
-	Local $iLeftWidth = 430
+	Local Const $iBrowserLeft = 452, $iBrowserTop = 72, $iMargin = 12
+	Local $iPreviousResizeMode = Opt("GUIResizeMode", $GUI_DOCKALL)
 	GUICtrlCreateLabel("Local HTML input", 12, 12, 320, 22)
 	GUICtrlCreateLabel("Input HTML file:", 12, 42, 105, 22)
 	Local $idInput = GUICtrlCreateInput("", 12, 66, 245, 24)
@@ -37,25 +41,32 @@ Func Main()
 	Local $idExtractPage = GUICtrlCreateButton("Extract current page", 180, 166, 159, 30)
 	Local $idLoadFolder = GUICtrlCreateButton("Load HTML / MHTML folder", 12, 214, 220, 28)
 	Local $idExportSelected = GUICtrlCreateButton("Export selected item", 240, 214, 200, 28)
-	Local $idFileList = GUICtrlCreateListView("File|Type|Size", 12, 250, 428, 470, BitOR($LVS_REPORT, $LVS_SINGLESEL, $LVS_SHOWSELALWAYS))
+	Local $idFileList = GUICtrlCreateListView("File|Type|Size", 12, 250, 428, 464, BitOR($LVS_REPORT, $LVS_SINGLESEL, $LVS_SHOWSELALWAYS))
 	GUICtrlSendMsg($idFileList, $LVM_SETCOLUMNWIDTH, 0, 270)
 	GUICtrlSendMsg($idFileList, $LVM_SETCOLUMNWIDTH, 1, 65)
 	GUICtrlSendMsg($idFileList, $LVM_SETCOLUMNWIDTH, 2, 80)
-	Local $idStatus = GUICtrlCreateLabel("Choose a local file, load a folder, or navigate to a URL.", 12, 730, 428, 40, $SS_SUNKEN)
-	Local $idClose = GUICtrlCreateButton("Close", 12, 770, 100, 26)
-	GUICtrlCreateLabel("Browser preview", $iLeftWidth + 20, 12, 320, 22)
-	Local $idBack = GUICtrlCreateButton("Back", $iLeftWidth + 20, 38, 55, 26)
-	Local $idForward = GUICtrlCreateButton("Forward", $iLeftWidth + 80, 38, 65, 26)
-	Local $idReload = GUICtrlCreateButton("Reload", $iLeftWidth + 150, 38, 60, 26)
-	Local $idStop = GUICtrlCreateButton("Stop", $iLeftWidth + 215, 38, 55, 26)
-	Local $idURL = GUICtrlCreateInput("https://example.com/", $iLeftWidth + 275, 38, 505, 26)
-	Local $idGo = GUICtrlCreateButton("Go", $iLeftWidth + 790, 38, 55, 26)
+	Local $idStatus = GUICtrlCreateLabel("Choose a local file, load a folder, or navigate to a URL.", 12, 724, 428, 30)
+	Local $idClose = GUICtrlCreateButton("Close", 12, 762, 100, 26)
+	GUICtrlCreateLabel("Browser preview", $iBrowserLeft, 12, 320, 22)
+	Local $idBack = GUICtrlCreateButton("Back", $iBrowserLeft, 38, 55, 26)
+	Local $idForward = GUICtrlCreateButton("Forward", $iBrowserLeft + 60, 38, 65, 26)
+	Local $idReload = GUICtrlCreateButton("Reload", $iBrowserLeft + 130, 38, 60, 26)
+	Local $idStop = GUICtrlCreateButton("Stop", $iBrowserLeft + 195, 38, 55, 26)
+	Local Const $iUrlLeft = $iBrowserLeft + 255
+	Local $idURL = GUICtrlCreateInput("https://example.com/", $iUrlLeft, 38, 80, 26)
+	Local $idGo = GUICtrlCreateButton("Go", $iUrlLeft + 88, 38, 64, 26)
 	Local $iMessage
+	Opt("GUIResizeMode", $iPreviousResizeMode)
+
+	; Keep the native controls aligned with the WebView2 bounds as the client area changes.
+	GUICtrlSetResizing($idFileList, BitOR($GUI_DOCKLEFT, $GUI_DOCKTOP, $GUI_DOCKBOTTOM, $GUI_DOCKWIDTH))
+	GUICtrlSetResizing($idStatus, BitOR($GUI_DOCKLEFT, $GUI_DOCKBOTTOM, $GUI_DOCKSIZE))
+	GUICtrlSetResizing($idClose, BitOR($GUI_DOCKLEFT, $GUI_DOCKBOTTOM, $GUI_DOCKSIZE))
 
 	GUISetBkColor($g_iMainBackgroundColor, $hGUI)
+	Local Const $iRedrawFlags = BitOR($RDW_INVALIDATE, $RDW_ERASE, $RDW_FRAME, $RDW_ALLCHILDREN)
 	GUICtrlSetBkColor($idInput, $g_iEditBackgroundColor)
 	GUICtrlSetBkColor($idOutput, $g_iEditBackgroundColor)
-	GUICtrlSetBkColor($idURL, $g_iEditBackgroundColor)
 	GUICtrlSetBkColor($idFileList, 0xFFFFFF)
 	GUICtrlSetBkColor($idInputBrowse, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idOutputBrowse, $g_iButtonBackgroundColor)
@@ -63,18 +74,22 @@ Func Main()
 	GUICtrlSetBkColor($idExtractPage, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idLoadFolder, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idExportSelected, $g_iButtonBackgroundColor)
-	GUICtrlSetBkColor($idClose, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idBack, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idForward, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idReload, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idStop, $g_iButtonBackgroundColor)
 	GUICtrlSetBkColor($idGo, $g_iButtonBackgroundColor)
 
+	Local Const $iGetMinMaxInfo = 0x0024
+	GUIRegisterMsg($iGetMinMaxInfo, "__EpubMaker_GetMinMaxInfo")
+	GUIRegisterMsg($WM_SIZE, "__EpubMaker_OnSize")
 	GUISetState(@SW_SHOW, $hGUI)
+	Local $aClientSize = WinGetClientSize($hGUI)
+	If IsArray($aClientSize) Then __EpubMaker_LayoutAddressBar($aClientSize[0], $iUrlLeft, $idURL, $idGo)
 	Local $sProfile = @LocalAppDataDir & "\ePUB Maker\WebView2"
 	If _WebView2_Init(Default, $sProfile) Then
 		Local $aInitialClient = WinGetClientSize($hGUI)
-		$g_iWebView = _WebView2_Create($hGUI, $iLeftWidth + 20, 72, $aInitialClient[0] - $iLeftWidth - 32, $aInitialClient[1] - 84)
+		$g_iWebView = _WebView2_Create($hGUI, $iBrowserLeft, $iBrowserTop, $aInitialClient[0] - $iBrowserLeft - $iMargin, $aInitialClient[1] - $iBrowserTop - $iMargin)
 		If @error Or $g_iWebView < 0 Then
 			$g_iWebView = -1
 			GUICtrlSetData($idStatus, "WebView2 could not be created. Local extraction remains available.")
@@ -84,9 +99,23 @@ Func Main()
 	Else
 		GUICtrlSetData($idStatus, "WebView2 is unavailable. Local extraction remains available.")
 	EndIf
+	$g_bLayoutPending = True
 
 	While True
 		$iMessage = GUIGetMsg()
+		If $g_bLayoutPending Then
+			$g_bLayoutPending = False
+			$aClientSize = WinGetClientSize($hGUI)
+			If IsArray($aClientSize) And Not BitAND(WinGetState($hGUI), 16) Then
+				Local $iBrowserWidth = $aClientSize[0] - $iBrowserLeft - $iMargin
+				Local $iBrowserHeight = $aClientSize[1] - $iBrowserTop - $iMargin
+				If $iBrowserWidth > 0 And $iBrowserHeight > 0 Then
+					__EpubMaker_LayoutAddressBar($aClientSize[0], $iUrlLeft, $idURL, $idGo)
+					If $g_iWebView >= 0 Then _WebView2_SetBounds($g_iWebView, $iBrowserLeft, $iBrowserTop, $iBrowserWidth, $iBrowserHeight)
+					_WinAPI_RedrawWindow($hGUI, 0, 0, $iRedrawFlags)
+				EndIf
+			EndIf
+		EndIf
 		Switch $iMessage
 			Case $GUI_EVENT_CLOSE, $idClose
 				ExitLoop
@@ -159,11 +188,6 @@ Func Main()
 				If $g_iWebView >= 0 Then _WebView2_Stop($g_iWebView)
 			Case $idGo
 				If $g_iWebView >= 0 Then _WebView2_Navigate($g_iWebView, GUICtrlRead($idURL))
-			Case $GUI_EVENT_RESIZED, $GUI_EVENT_MAXIMIZE, $GUI_EVENT_RESTORE
-				If $g_iWebView >= 0 Then
-					Local $aSize = WinGetClientSize($hGUI)
-					If IsArray($aSize) Then _WebView2_SetBounds($g_iWebView, $iLeftWidth + 20, 72, $aSize[0] - $iLeftWidth - 32, $aSize[1] - 84)
-				EndIf
 		EndSwitch
 	WEnd
 
@@ -171,6 +195,71 @@ Func Main()
 	_WebView2_Cleanup()
 	GUIDelete($hGUI)
 EndFunc   ;==>Main
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name...........: __EpubMaker_OnSize
+; Description ...: Schedules a layout update when Windows resizes the client area.
+; Syntax.........: __EpubMaker_OnSize()
+; Parameters ....: None.
+; Return values .: $GUI_RUNDEFMSG to preserve native control docking.
+; Author ........:
+; Modified.......:
+; Remarks .......: The GUI loop updates WebView2 outside the window message callback.
+; Related .......:
+; Link ..........:
+; Example .......:
+; ===============================================================================================================================
+Func __EpubMaker_OnSize()
+	$g_bLayoutPending = True
+	Return $GUI_RUNDEFMSG
+EndFunc   ;==>__EpubMaker_OnSize
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name...........: __EpubMaker_LayoutAddressBar
+; Description ...: Fits the URL field and Go button to the current client width.
+; Syntax.........: __EpubMaker_LayoutAddressBar($iClientWidth, $iUrlLeft, $idURL, $idGo)
+; Parameters ....: $iClientWidth - Current width of the main window's client area.
+;                  $iUrlLeft     - Left edge of the URL field.
+;                  $idURL       - URL field control ID.
+;                  $idGo        - Go button control ID.
+; Return values .: None.
+; Author ........:
+; Modified.......:
+; Remarks .......:
+; Related .......:
+; Link ..........:
+; Example .......:
+; ===============================================================================================================================
+Func __EpubMaker_LayoutAddressBar($iClientWidth, $iUrlLeft, $idURL, $idGo)
+	Local Const $iTop = 38, $iHeight = 26, $iGoWidth = 64, $iRightMargin = 24, $iGap = 8
+	Local $iGoLeft = $iClientWidth - $iRightMargin - $iGoWidth
+	Local $iUrlWidth = $iGoLeft - $iGap - $iUrlLeft
+	If $iUrlWidth <= 0 Then Return
+	GUICtrlSetPos($idURL, $iUrlLeft, $iTop, $iUrlWidth, $iHeight)
+	GUICtrlSetPos($idGo, $iGoLeft, $iTop, $iGoWidth, $iHeight)
+EndFunc   ;==>__EpubMaker_LayoutAddressBar
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name...........: __EpubMaker_GetMinMaxInfo
+; Description ...: Keeps both panes usable when the main window is resized.
+; Syntax.........: __EpubMaker_GetMinMaxInfo($hWnd, $iMsg, $wParam, $lParam)
+; Parameters ....: $hWnd, $iMsg, $wParam - Unused window message parameters.
+;                  $lParam - Pointer to the system MINMAXINFO structure.
+; Return values .: 0 after updating the minimum tracking size.
+; Author ........:
+; Modified.......:
+; Remarks .......:
+; Related .......:
+; Link ..........:
+; Example .......:
+; ===============================================================================================================================
+Func __EpubMaker_GetMinMaxInfo($hWnd, $iMsg, $wParam, $lParam)
+	#forceref $hWnd, $iMsg, $wParam
+	Local $tLimits = DllStructCreate("long Reserved[2];long MaxSize[2];long MaxPosition[2];long MinTrackWidth;long MinTrackHeight;long MaxTrackSize[2]", $lParam)
+	DllStructSetData($tLimits, "MinTrackWidth", 900)
+	DllStructSetData($tLimits, "MinTrackHeight", 440)
+	Return 0
+EndFunc   ;==>__EpubMaker_GetMinMaxInfo
 
 Func _EpubMaker_LoadFolder($sFolder, $idListView)
 	If Not FileExists($sFolder) Or Not StringInStr(FileGetAttrib($sFolder), "D") Then Return SetError(1, 0, 0)
