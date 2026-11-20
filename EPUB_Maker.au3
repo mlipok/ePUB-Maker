@@ -4,6 +4,7 @@
 #include <File.au3>
 #include <GUIConstantsEx.au3>
 #include <GuiListView.au3>
+#include <GuiTab.au3>
 #include <ListViewConstants.au3>
 #include <MsgBoxConstants.au3>
 #include <APIGdiConstants.au3>
@@ -22,6 +23,11 @@ Global Const $g_sVersion = "0.2.0"
 Global Const $g_iMainBackgroundColor = 0xC0C0C0
 Global Const $g_iButtonBackgroundColor = 0xD6D6D6
 Global Const $g_iEditBackgroundColor = 0xF7F7F7
+Global Const $g_iTabActiveBackground = 0xFCE4D6
+Global Const $g_iTabActiveText = 0x202020
+Global Const $g_iTabInactiveBackground = 0x4F81BD
+Global Const $g_iTabInactiveText = 0xFFFFFF
+Global $g_hMainTabs = 0
 Global $g_iWebView = -1
 Global $g_bLayoutPending = True
 Global $g_asListedFiles[1] = [0]
@@ -32,8 +38,10 @@ Func Main()
 	Local $hGUI = GUICreate($g_sApplicationName & " " & $g_sVersion, 1300, 800, -1, -1, BitOR($WS_OVERLAPPEDWINDOW, $WS_CLIPCHILDREN))
 	Local Const $iBrowserLeft = 452, $iBrowserTop = 102, $iMargin = 12
 	Local $iPreviousResizeMode = Opt("GUIResizeMode", $GUI_DOCKALL)
-	Local $idCalibre = GUICtrlCreateButton("Calibre location...", 220, 3, 130, 24)
-	Local $idTabs = GUICtrlCreateTab(4, 4, 1292, 792)
+	Local $idCalibre = GUICtrlCreateButton("Calibre location...", 266, 3, 130, 24)
+	Local $idTabs = GUICtrlCreateTab(4, 4, 1292, 792, BitOR($TCS_OWNERDRAWFIXED, $TCS_FIXEDWIDTH))
+	$g_hMainTabs = GUICtrlGetHandle($idTabs)
+	_GUICtrlTab_SetItemSize($g_hMainTabs, 120, 22)
 	GUICtrlSetResizing($idTabs, $GUI_DOCKBORDERS)
 	GUICtrlCreateTabItem("Single file")
 	GUICtrlCreateLabel("Local HTML input", 12, 42, 320, 22)
@@ -112,6 +120,7 @@ Func Main()
 	Local Const $iGetMinMaxInfo = 0x0024
 	GUIRegisterMsg($iGetMinMaxInfo, "__EpubMaker_GetMinMaxInfo")
 	GUIRegisterMsg($WM_SIZE, "__EpubMaker_OnSize")
+	GUIRegisterMsg($WM_DRAWITEM, "__EpubMaker_DrawTabs")
 	GUISetState(@SW_SHOW, $hGUI)
 	Local $aClientSize = WinGetClientSize($hGUI)
 	If IsArray($aClientSize) Then __EpubMaker_LayoutAddressBar($aClientSize[0], $iUrlLeft, $idURL, $idGo)
@@ -305,6 +314,61 @@ Func Main()
 	_WebView2_Cleanup()
 	GUIDelete($hGUI)
 EndFunc   ;==>Main
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name...........: __EpubMaker_DrawTabs
+; Description ...: Paints the native tab headers using the application palette.
+; Syntax.........: __EpubMaker_DrawTabs($hWnd, $iMsg, $wParam, $lParam)
+; Parameters ....: $hWnd, $iMsg, $wParam - Unused window message parameters.
+;                  $lParam - Pointer to the Windows DRAWITEMSTRUCT.
+; Return values .: 1 when a tab header was painted, or $GUI_RUNDEFMSG for default handling.
+; Author ........:
+; Modified.......:
+; Remarks .......: Native tab selection and keyboard navigation are retained.
+; Related .......:
+; Link ..........:
+; Example .......:
+; ===============================================================================================================================
+Func __EpubMaker_DrawTabs($hWnd, $iMsg, $wParam, $lParam)
+	#forceref $hWnd, $iMsg, $wParam
+	Local Const $iTabControlType = 101, $iItemFocus = 0x0010, $iHideFocusRect = 0x0200
+	Local Const $tagTabDrawItem = "uint Type;uint ControlID;uint ItemID;uint Action;uint State;hwnd Control;handle DC;long Rect[4];ulong_ptr Data"
+	Local $tDraw = DllStructCreate($tagTabDrawItem, $lParam)
+	If DllStructGetData($tDraw, "Type") <> $iTabControlType Or DllStructGetData($tDraw, "Control") <> $g_hMainTabs Then Return $GUI_RUNDEFMSG
+
+	Local $iItem = DllStructGetData($tDraw, "ItemID")
+	Local $iBackground = $g_iTabInactiveBackground, $iText = $g_iTabInactiveText
+	If $iItem = _GUICtrlTab_GetCurSel($g_hMainTabs) Then
+		$iBackground = $g_iTabActiveBackground
+		$iText = $g_iTabActiveText
+	EndIf
+	Local $hDC = DllStructGetData($tDraw, "DC")
+	Local $iSavedDC = _WinAPI_SaveDC($hDC)
+	If Not $iSavedDC Then Return $GUI_RUNDEFMSG
+	Local $hBrush = _WinAPI_CreateSolidBrush(_WinAPI_SwitchColor($iBackground))
+	If Not $hBrush Then
+		_WinAPI_RestoreDC($hDC, $iSavedDC)
+		Return $GUI_RUNDEFMSG
+	EndIf
+
+	Local $tRect = DllStructCreate($tagRECT, DllStructGetPtr($tDraw, "Rect"))
+	_WinAPI_FillRect($hDC, $tRect, $hBrush)
+	_WinAPI_DeleteObject($hBrush)
+	_WinAPI_SetBkMode($hDC, $TRANSPARENT)
+	_WinAPI_SetTextColor($hDC, _WinAPI_SwitchColor($iText))
+	_WinAPI_DrawText($hDC, _GUICtrlTab_GetItemText($g_hMainTabs, $iItem), $tRect, BitOR($DT_CENTER, $DT_VCENTER, $DT_SINGLELINE, $DT_NOPREFIX))
+	Local $iState = DllStructGetData($tDraw, "State")
+	If BitAND($iState, BitOR($iItemFocus, $iHideFocusRect)) = $iItemFocus Then
+		Local $tFocusRect = DllStructCreate($tagRECT)
+		For $iEdge = 1 To 4
+			DllStructSetData($tFocusRect, $iEdge, DllStructGetData($tRect, $iEdge))
+		Next
+		_WinAPI_InflateRect($tFocusRect, -2, -2)
+		_WinAPI_DrawFocusRect($hDC, $tFocusRect)
+	EndIf
+	_WinAPI_RestoreDC($hDC, $iSavedDC)
+	Return 1
+EndFunc   ;==>__EpubMaker_DrawTabs
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
 ; Name...........: __EpubMaker_FindCalibre
