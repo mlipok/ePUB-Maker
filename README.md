@@ -1,6 +1,6 @@
 # ePUB Maker
 
-The first prototype shows a WebView2 browser preview on the right and extracts Base64-embedded resources from HTML or MHTML sources into a Sigil-friendly result:
+ePUB Maker converts saved HTML and MHTML documents to EPUB 3. It also provides a WebView2 browser preview and a separate Base64 resource extraction workflow for Sigil:
 
 ```text
 output-folder/
@@ -10,18 +10,17 @@ output-folder/
     resource_002.woff2
 ```
 
-The application is written in AutoIt and has an English user interface. It currently handles standard `data:<mime>;base64,...` URLs found in HTML, CSS and related inline content. It does not yet create an EPUB package.
+The application is written in AutoIt and has an English user interface.
 
 ## Usage
 
-1. Run or compile `EPUB_Maker.au3` with AutoIt 3.
-2. Navigate to a URL in the right-hand browser, or load a folder containing HTML/MHTML files.
-3. Select a loaded file to preview it in the browser.
-4. Select an output folder.
-5. Click **Extract selected item** or **Extract current page**.
-6. Import the generated HTML file and its `_files` folder into Sigil.
+**Single file** previews local files or web pages, extracts Base64 resources for Sigil, and converts a selected local HTML or MHTML file to EPUB. **Batch processing** converts every HTML or MHTML file in a source folder and its subfolders, mirrors the directory structure in a separate output folder, and shows progress and a conversion summary in the window.
 
-The output folder is intentionally selected separately from the source folder. Existing files with generated names are overwritten in that selected output folder.
+For example, `Archive/Books/Almuric.html` becomes `Archive_EPUB/Books/Almuric.epub`. If the same folder also contains `Almuric.mhtml`, the outputs are `Almuric.html.epub` and `Almuric.mhtml.epub`. Select **Always include the source extension in the EPUB name** to use these qualified names for every file.
+
+ePUB Maker uses calibre, a free and open-source tool, to convert files to EPUB. You can use calibre Portable without a system-wide installation. Download and extract it to a folder of your choice, then use **Calibre location...** in ePUB Maker to select `calibre-debug.exe` inside the portable folder. [Official calibre Portable download](https://calibre-ebook.com/download_portable) · [Standard Windows download](https://calibre-ebook.com/download_windows)
+
+Keep `epub_convert.py` beside `EPUB_Maker.au3` or the compiled executable. The helper uses calibre's embedded Python runtime. See [HOWTO](HOWTO.md).
 
 ## WebView2 UDF dependency
 
@@ -41,13 +40,9 @@ The AutoIt project instructions are maintained separately in [AutoIt3-AGENTS.md]
 
 ## Scope and limitations
 
-- Only Base64 data URLs are extracted in this version.
-- External URLs and ordinary relative files are left unchanged.
-- The tool does not validate the HTML or EPUB structure.
-- A loaded folder is currently scanned non-recursively.
-- MHTML preview/export uses the HTML source exposed by WebView2 after navigation.
-- Duplicate detection is not yet content-based; repeated identical URLs are processed in the same run as separate occurrences.
-- MHTML input and direct EPUB creation are planned for later versions.
+- The file list in **Single file** shows the selected folder. **Batch processing** includes its subfolders and skips junctions and symbolic links.
+- EPUB conversion accepts local `.html`, `.htm`, `.mhtml` and `.mht` files. MHTML conversion restores the main HTML page and captured stylesheets, images and fonts. Embedded frames and scripts are excluded from the MHTML conversion.
+- Existing EPUBs are skipped. The separate HTML resource extraction workflow can overwrite files with matching names in its output folder.
 
 ## License
 

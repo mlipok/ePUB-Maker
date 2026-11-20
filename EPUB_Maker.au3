@@ -4,22 +4,30 @@
 #include <File.au3>
 #include <GUIConstantsEx.au3>
 #include <GuiListView.au3>
+#include <GuiTab.au3>
 #include <ListViewConstants.au3>
 #include <MsgBoxConstants.au3>
 #include <APIGdiConstants.au3>
 #include <WinAPIGdi.au3>
 #include <WindowsConstants.au3>
 #include <WindowsNotifsConstants.au3>
+#include <AutoItConstants.au3>
+#include <EditConstants.au3>
 
 #include "UDF\WebView2.au3"
 
 Opt("MustDeclareVars", 1)
 
-Global Const $g_sApplicationName = "ePUB Maker - Base64 resource extractor"
-Global Const $g_sVersion = "0.1.1"
+Global Const $g_sApplicationName = "ePUB Maker"
+Global Const $g_sVersion = "0.2.0"
 Global Const $g_iMainBackgroundColor = 0xC0C0C0
 Global Const $g_iButtonBackgroundColor = 0xD6D6D6
 Global Const $g_iEditBackgroundColor = 0xF7F7F7
+Global Const $g_iTabActiveBackground = 0xFCE4D6
+Global Const $g_iTabActiveText = 0x202020
+Global Const $g_iTabInactiveBackground = 0x4F81BD
+Global Const $g_iTabInactiveText = 0xFFFFFF
+Global $g_hMainTabs = 0
 Global $g_iWebView = -1
 Global $g_bLayoutPending = True
 Global $g_asListedFiles[1] = [0]
@@ -28,34 +36,63 @@ Main()
 
 Func Main()
 	Local $hGUI = GUICreate($g_sApplicationName & " " & $g_sVersion, 1300, 800, -1, -1, BitOR($WS_OVERLAPPEDWINDOW, $WS_CLIPCHILDREN))
-	Local Const $iBrowserLeft = 452, $iBrowserTop = 72, $iMargin = 12
+	Local Const $iBrowserLeft = 452, $iBrowserTop = 102, $iMargin = 12
 	Local $iPreviousResizeMode = Opt("GUIResizeMode", $GUI_DOCKALL)
-	GUICtrlCreateLabel("Local HTML input", 12, 12, 320, 22)
-	GUICtrlCreateLabel("Input HTML file:", 12, 42, 105, 22)
-	Local $idInput = GUICtrlCreateInput("", 12, 66, 245, 24)
-	Local $idInputBrowse = GUICtrlCreateButton("Browse...", 264, 66, 75, 24)
-	GUICtrlCreateLabel("Output folder:", 12, 102, 105, 22)
-	Local $idOutput = GUICtrlCreateInput("", 12, 126, 245, 24)
-	Local $idOutputBrowse = GUICtrlCreateButton("Browse...", 264, 126, 75, 24)
-	Local $idProcess = GUICtrlCreateButton("Extract local file", 12, 166, 160, 30)
-	Local $idExtractPage = GUICtrlCreateButton("Extract current page", 180, 166, 159, 30)
-	Local $idLoadFolder = GUICtrlCreateButton("Load HTML / MHTML folder", 12, 214, 220, 28)
-	Local $idExportSelected = GUICtrlCreateButton("Export selected item", 240, 214, 200, 28)
-	Local $idFileList = GUICtrlCreateListView("File|Type|Size", 12, 250, 428, 464, BitOR($LVS_REPORT, $LVS_SINGLESEL, $LVS_SHOWSELALWAYS))
+	Local $idCalibre = GUICtrlCreateButton("Calibre location...", 266, 3, 130, 24)
+	Local $idTabs = GUICtrlCreateTab(4, 4, 1292, 792, BitOR($TCS_OWNERDRAWFIXED, $TCS_FIXEDWIDTH))
+	$g_hMainTabs = GUICtrlGetHandle($idTabs)
+	_GUICtrlTab_SetItemSize($g_hMainTabs, 120, 22)
+	GUICtrlSetResizing($idTabs, $GUI_DOCKBORDERS)
+	GUICtrlCreateTabItem("Single file")
+	GUICtrlCreateLabel("Local HTML input", 12, 42, 320, 22)
+	GUICtrlCreateLabel("Input HTML / MHTML file:", 12, 72, 190, 22)
+	Local $idInput = GUICtrlCreateInput("", 12, 96, 245, 24)
+	Local $idInputBrowse = GUICtrlCreateButton("Browse...", 264, 96, 75, 24)
+	GUICtrlCreateLabel("Output folder:", 12, 132, 105, 22)
+	Local $idOutput = GUICtrlCreateInput("", 12, 156, 245, 24)
+	Local $idOutputBrowse = GUICtrlCreateButton("Browse...", 264, 156, 75, 24)
+	Local $idProcess = GUICtrlCreateButton("Extract local file", 12, 196, 130, 30)
+	Local $idExtractPage = GUICtrlCreateButton("Extract current page", 148, 196, 150, 30)
+	Local $idConvertSingle = GUICtrlCreateButton("Convert to EPUB", 304, 196, 136, 30)
+	Local $idLoadFolder = GUICtrlCreateButton("Load HTML / MHTML folder", 12, 244, 220, 28)
+	Local $idExportSelected = GUICtrlCreateButton("Export selected item", 240, 244, 200, 28)
+	Local $idFileList = GUICtrlCreateListView("File|Type|Size", 12, 280, 428, 434, BitOR($LVS_REPORT, $LVS_SINGLESEL, $LVS_SHOWSELALWAYS))
 	GUICtrlSendMsg($idFileList, $LVM_SETCOLUMNWIDTH, 0, 270)
 	GUICtrlSendMsg($idFileList, $LVM_SETCOLUMNWIDTH, 1, 65)
 	GUICtrlSendMsg($idFileList, $LVM_SETCOLUMNWIDTH, 2, 80)
 	Local $idStatus = GUICtrlCreateLabel("Choose a local file, load a folder, or navigate to a URL.", 12, 724, 428, 30)
 	Local $idClose = GUICtrlCreateButton("Close", 12, 762, 100, 26)
-	GUICtrlCreateLabel("Browser preview", $iBrowserLeft, 12, 320, 22)
-	Local $idBack = GUICtrlCreateButton("Back", $iBrowserLeft, 38, 55, 26)
-	Local $idForward = GUICtrlCreateButton("Forward", $iBrowserLeft + 60, 38, 65, 26)
-	Local $idReload = GUICtrlCreateButton("Reload", $iBrowserLeft + 130, 38, 60, 26)
-	Local $idStop = GUICtrlCreateButton("Stop", $iBrowserLeft + 195, 38, 55, 26)
+	GUICtrlCreateLabel("Browser preview", $iBrowserLeft, 42, 320, 22)
+	Local $idBack = GUICtrlCreateButton("Back", $iBrowserLeft, 68, 55, 26)
+	Local $idForward = GUICtrlCreateButton("Forward", $iBrowserLeft + 60, 68, 65, 26)
+	Local $idReload = GUICtrlCreateButton("Reload", $iBrowserLeft + 130, 68, 60, 26)
+	Local $idStop = GUICtrlCreateButton("Stop", $iBrowserLeft + 195, 68, 55, 26)
 	Local Const $iUrlLeft = $iBrowserLeft + 255
-	Local $idURL = GUICtrlCreateInput("https://example.com/", $iUrlLeft, 38, 80, 26)
-	Local $idGo = GUICtrlCreateButton("Go", $iUrlLeft + 88, 38, 64, 26)
+	Local $idURL = GUICtrlCreateInput("https://example.com/", $iUrlLeft, 68, 80, 26)
+	Local $idGo = GUICtrlCreateButton("Go", $iUrlLeft + 88, 68, 64, 26)
+
+	GUICtrlCreateTabItem("Batch processing")
+	GUICtrlCreateLabel("Source folder (includes subfolders)", 16, 42, 360, 20)
+	Local $idBatchSource = GUICtrlCreateInput("", 16, 64, 620, 24)
+	Local $idBatchBrowseSource = GUICtrlCreateButton("Browse...", 644, 64, 80, 24)
+	GUICtrlCreateLabel("Output folder (mirrors the source folder structure)", 16, 100, 500, 20)
+	Local $idBatchOutput = GUICtrlCreateInput("", 16, 122, 620, 24)
+	Local $idBatchBrowseOutput = GUICtrlCreateButton("Browse...", 644, 122, 80, 24)
+	Local $idKeepExtension = GUICtrlCreateCheckbox("Always include the source extension in the EPUB name", 16, 158, 475, 24)
+	GUICtrlCreateLabel("When cleared, the source extension is added only if names conflict.", 16, 186, 650, 22)
+	Local $idConvertBatch = GUICtrlCreateButton("Convert folder to EPUB", 16, 218, 190, 30)
+	Local $idProgress = GUICtrlCreateProgress(16, 264, 1268, 24)
+	Local $idBatchStatus = GUICtrlCreateLabel("Choose source and output folders.", 16, 296, 1268, 30)
+	Local $idBatchDetails = GUICtrlCreateEdit("", 16, 332, 1268, 452, BitOR($ES_MULTILINE, $ES_READONLY, $ES_AUTOVSCROLL, $WS_VSCROLL))
+	GUICtrlSetResizing($idProgress, BitOR($GUI_DOCKLEFT, $GUI_DOCKRIGHT, $GUI_DOCKTOP, $GUI_DOCKHEIGHT))
+	GUICtrlSetResizing($idBatchStatus, BitOR($GUI_DOCKLEFT, $GUI_DOCKRIGHT, $GUI_DOCKTOP, $GUI_DOCKHEIGHT))
+	GUICtrlSetResizing($idBatchDetails, $GUI_DOCKBORDERS)
+	GUICtrlCreateTabItem("")
+
 	Local $iMessage
+	Local $sCalibre = __EpubMaker_FindCalibre()
+	Local $iWorker = 0, $idWorkerStatus = $idStatus, $iLastPercent = -1
+	Local $sWorkerBuffer = "", $sWorkerDetails = "", $sWorkerResult = ""
 	Opt("GUIResizeMode", $iPreviousResizeMode)
 
 	; Keep the native controls aligned with the WebView2 bounds as the client area changes.
@@ -83,6 +120,7 @@ Func Main()
 	Local Const $iGetMinMaxInfo = 0x0024
 	GUIRegisterMsg($iGetMinMaxInfo, "__EpubMaker_GetMinMaxInfo")
 	GUIRegisterMsg($WM_SIZE, "__EpubMaker_OnSize")
+	GUIRegisterMsg($WM_DRAWITEM, "__EpubMaker_DrawTabs")
 	GUISetState(@SW_SHOW, $hGUI)
 	Local $aClientSize = WinGetClientSize($hGUI)
 	If IsArray($aClientSize) Then __EpubMaker_LayoutAddressBar($aClientSize[0], $iUrlLeft, $idURL, $idGo)
@@ -103,6 +141,44 @@ Func Main()
 
 	While True
 		$iMessage = GUIGetMsg()
+		If $iWorker Then
+			Local $sChunk = StdoutRead($iWorker)
+			Local $bWorkerEnded = @error <> 0
+			$sWorkerBuffer &= $sChunk
+			Local $iNewline = StringInStr($sWorkerBuffer, @LF, 1)
+			While $iNewline
+				Local $sLine = StringStripCR(StringLeft($sWorkerBuffer, $iNewline - 1))
+				$sWorkerBuffer = StringTrimLeft($sWorkerBuffer, $iNewline)
+				Local $aProgress = StringRegExp($sLine, "^EPUBMAKER\|(status|detail|result)\|(\d{1,3})\|([0-9a-f]*)$", 1)
+				If IsArray($aProgress) Then
+					Local $sProgress = BinaryToString(Binary("0x" & $aProgress[2]), 4)
+					If $aProgress[0] = "detail" Then
+						$sWorkerDetails &= $sProgress & @CRLF
+					Else
+						GUICtrlSetData($idWorkerStatus, $sProgress)
+						$iLastPercent = Number($aProgress[1])
+						If $aProgress[0] = "result" Then $sWorkerResult = $sProgress
+					EndIf
+				EndIf
+				$iNewline = StringInStr($sWorkerBuffer, @LF, 1)
+			WEnd
+			If $idWorkerStatus = $idBatchStatus And $iLastPercent >= 0 Then
+				GUICtrlSetData($idProgress, $iLastPercent)
+				$iLastPercent = -1
+			EndIf
+			If $bWorkerEnded Then
+				$iWorker = 0
+				If $sWorkerResult = "" Then $sWorkerResult = "The conversion process ended without reporting a result."
+				GUICtrlSetData($idWorkerStatus, $sWorkerResult)
+				If $idWorkerStatus = $idBatchStatus Then
+					GUICtrlSetData($idBatchDetails, $sWorkerDetails)
+				ElseIf $sWorkerDetails <> "" Then
+					MsgBox($MB_ICONINFORMATION, $g_sApplicationName, $sWorkerResult & @CRLF & $sWorkerDetails, 0, $hGUI)
+				EndIf
+				GUICtrlSetState($idConvertSingle, $GUI_ENABLE)
+				GUICtrlSetState($idConvertBatch, $GUI_ENABLE)
+			EndIf
+		EndIf
 		If $g_bLayoutPending Then
 			$g_bLayoutPending = False
 			$aClientSize = WinGetClientSize($hGUI)
@@ -118,7 +194,50 @@ Func Main()
 		EndIf
 		Switch $iMessage
 			Case $GUI_EVENT_CLOSE, $idClose
+				If $iWorker Then
+					MsgBox($MB_ICONINFORMATION, $g_sApplicationName, "Wait for the conversion to finish before closing.", 0, $hGUI)
+					ContinueLoop
+				EndIf
 				ExitLoop
+			Case $idTabs
+				If $g_iWebView >= 0 Then _WebView2_SetVisible($g_iWebView, GUICtrlRead($idTabs) = 0)
+				$g_bLayoutPending = True
+			Case $idCalibre
+				Local $sSelectedCalibre = FileOpenDialog("Select calibre-debug.exe", @ProgramFilesDir, "Calibre conversion tool (calibre-debug.exe)", $FD_FILEMUSTEXIST)
+				If Not @error Then $sCalibre = $sSelectedCalibre
+			Case $idBatchBrowseSource, $idBatchBrowseOutput
+				Local $sBatchFolder = FileSelectFolder("Select a folder", "", 1, "", $hGUI)
+				If @error Then ContinueLoop
+				Local $idBatchField = ($iMessage = $idBatchBrowseSource) ? $idBatchSource : $idBatchOutput
+				GUICtrlSetData($idBatchField, $sBatchFolder)
+			Case $idConvertSingle, $idConvertBatch
+				If $iWorker Then ContinueLoop
+				Local $sMode = "single", $sNaming = "conflict"
+				Local $sConversionSource = GUICtrlRead($idInput), $sConversionOutput = GUICtrlRead($idOutput)
+				$idWorkerStatus = $idStatus
+				If $iMessage = $idConvertBatch Then
+					$sMode = "batch"
+					$sConversionSource = GUICtrlRead($idBatchSource)
+					$sConversionOutput = GUICtrlRead($idBatchOutput)
+					If GUICtrlRead($idKeepExtension) = $GUI_CHECKED Then $sNaming = "always"
+					$idWorkerStatus = $idBatchStatus
+					GUICtrlSetData($idProgress, 0)
+					GUICtrlSetData($idBatchDetails, "")
+				EndIf
+				Local $sStartError = ""
+				$iWorker = __EpubMaker_StartConversion($sCalibre, $sMode, $sConversionSource, $sConversionOutput, $sNaming, $sStartError)
+				If Not $iWorker Then
+					GUICtrlSetData($idWorkerStatus, $sStartError)
+					MsgBox($MB_ICONWARNING, $g_sApplicationName, $sStartError, 0, $hGUI)
+					ContinueLoop
+				EndIf
+				$sWorkerBuffer = ""
+				$sWorkerDetails = ""
+				$sWorkerResult = ""
+				$iLastPercent = -1
+				GUICtrlSetData($idWorkerStatus, "Starting conversion...")
+				GUICtrlSetState($idConvertSingle, $GUI_DISABLE)
+				GUICtrlSetState($idConvertBatch, $GUI_DISABLE)
 			Case $idInputBrowse
 				Local $sInput = FileOpenDialog("Select an HTML or MHTML file", @ScriptDir, "HTML/MHTML files (*.html;*.htm;*.mht;*.mhtml)|All files (*.*)", $FD_FILEMUSTEXIST)
 				If Not @error Then GUICtrlSetData($idInput, $sInput)
@@ -197,6 +316,129 @@ Func Main()
 EndFunc   ;==>Main
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name...........: __EpubMaker_DrawTabs
+; Description ...: Paints the native tab headers using the application palette.
+; Syntax.........: __EpubMaker_DrawTabs($hWnd, $iMsg, $wParam, $lParam)
+; Parameters ....: $hWnd, $iMsg, $wParam - Unused window message parameters.
+;                  $lParam - Pointer to the Windows DRAWITEMSTRUCT.
+; Return values .: 1 when a tab header was painted, or $GUI_RUNDEFMSG for default handling.
+; Author ........:
+; Modified.......:
+; Remarks .......: Native tab selection and keyboard navigation are retained.
+; Related .......:
+; Link ..........:
+; Example .......:
+; ===============================================================================================================================
+Func __EpubMaker_DrawTabs($hWnd, $iMsg, $wParam, $lParam)
+	#forceref $hWnd, $iMsg, $wParam
+	Local Const $iTabControlType = 101, $iItemFocus = 0x0010, $iHideFocusRect = 0x0200
+	Local Const $tagTabDrawItem = "uint Type;uint ControlID;uint ItemID;uint Action;uint State;hwnd Control;handle DC;long Rect[4];ulong_ptr Data"
+	Local $tDraw = DllStructCreate($tagTabDrawItem, $lParam)
+	If DllStructGetData($tDraw, "Type") <> $iTabControlType Or DllStructGetData($tDraw, "Control") <> $g_hMainTabs Then Return $GUI_RUNDEFMSG
+
+	Local $iItem = DllStructGetData($tDraw, "ItemID")
+	Local $iBackground = $g_iTabInactiveBackground, $iText = $g_iTabInactiveText
+	If $iItem = _GUICtrlTab_GetCurSel($g_hMainTabs) Then
+		$iBackground = $g_iTabActiveBackground
+		$iText = $g_iTabActiveText
+	EndIf
+	Local $hDC = DllStructGetData($tDraw, "DC")
+	Local $iSavedDC = _WinAPI_SaveDC($hDC)
+	If Not $iSavedDC Then Return $GUI_RUNDEFMSG
+	Local $hBrush = _WinAPI_CreateSolidBrush(_WinAPI_SwitchColor($iBackground))
+	If Not $hBrush Then
+		_WinAPI_RestoreDC($hDC, $iSavedDC)
+		Return $GUI_RUNDEFMSG
+	EndIf
+
+	Local $tRect = DllStructCreate($tagRECT, DllStructGetPtr($tDraw, "Rect"))
+	_WinAPI_FillRect($hDC, $tRect, $hBrush)
+	_WinAPI_DeleteObject($hBrush)
+	_WinAPI_SetBkMode($hDC, $TRANSPARENT)
+	_WinAPI_SetTextColor($hDC, _WinAPI_SwitchColor($iText))
+	_WinAPI_DrawText($hDC, _GUICtrlTab_GetItemText($g_hMainTabs, $iItem), $tRect, BitOR($DT_CENTER, $DT_VCENTER, $DT_SINGLELINE, $DT_NOPREFIX))
+	Local $iState = DllStructGetData($tDraw, "State")
+	If BitAND($iState, BitOR($iItemFocus, $iHideFocusRect)) = $iItemFocus Then
+		Local $tFocusRect = DllStructCreate($tagRECT)
+		For $iEdge = 1 To 4
+			DllStructSetData($tFocusRect, $iEdge, DllStructGetData($tRect, $iEdge))
+		Next
+		_WinAPI_InflateRect($tFocusRect, -2, -2)
+		_WinAPI_DrawFocusRect($hDC, $tFocusRect)
+	EndIf
+	_WinAPI_RestoreDC($hDC, $iSavedDC)
+	Return 1
+EndFunc   ;==>__EpubMaker_DrawTabs
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name...........: __EpubMaker_FindCalibre
+; Description ...: Finds the calibre command-line runtime.
+; Syntax.........: __EpubMaker_FindCalibre()
+; Parameters ....: None.
+; Return values .: Full executable path, or an empty string when not found.
+; Author ........:
+; Modified.......:
+; Remarks .......: EPUB_MAKER_CALIBRE may point to a portable calibre-debug.exe.
+; Related .......:
+; Link ..........:
+; Example .......:
+; ===============================================================================================================================
+Func __EpubMaker_FindCalibre()
+	Local $sConfigured = EnvGet("EPUB_MAKER_CALIBRE")
+	If $sConfigured <> "" And FileExists($sConfigured) Then Return _PathFull($sConfigured)
+	Local $asProgramFiles[2] = [EnvGet("ProgramW6432"), @ProgramFilesDir]
+	For $sFolder In $asProgramFiles
+		If $sFolder = "" Then ContinueLoop
+		Local $sExe = $sFolder & "\Calibre2\calibre-debug.exe"
+		If FileExists($sExe) Then Return $sExe
+	Next
+	Return ""
+EndFunc   ;==>__EpubMaker_FindCalibre
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name...........: __EpubMaker_StartConversion
+; Description ...: Starts the calibre worker for a file or a folder tree.
+; Syntax.........: __EpubMaker_StartConversion($sCalibre, $sMode, $sSource, $sOutput, $sNaming, ByRef $sMessage)
+; Parameters ....: $sCalibre - Full path to calibre-debug.exe.
+;                  $sMode    - "single" or "batch".
+;                  $sSource  - Source file or folder.
+;                  $sOutput  - Destination folder.
+;                  $sNaming  - "always" or "conflict".
+;                  $sMessage - Receives an explanation if the worker cannot start.
+; Return values .: Worker PID on success, or 0 on failure.
+; Author ........:
+; Modified.......:
+; Remarks .......: The worker reports progress and details through its captured stdout pipe.
+; Related .......:
+; Link ..........:
+; Example .......:
+; ===============================================================================================================================
+Func __EpubMaker_StartConversion($sCalibre, $sMode, $sSource, $sOutput, $sNaming, ByRef $sMessage)
+	If Not StringRegExp($sCalibre, "(?i)[\\/]calibre-debug\.exe$") Or Not FileExists($sCalibre) Then
+		$sMessage = "Install calibre or use Calibre location... to select calibre-debug.exe."
+		Return 0
+	EndIf
+	Local $sHelper = @ScriptDir & "\epub_convert.py"
+	If Not FileExists($sHelper) Then
+		$sMessage = "epub_convert.py must be in the same folder as ePUB Maker."
+		Return 0
+	EndIf
+	If $sSource = "" Or $sOutput = "" Or StringInStr($sSource & $sOutput, '"') Or Not FileExists($sSource) Or Not StringInStr(FileGetAttrib($sOutput), "D") Then
+		$sMessage = "Select an existing source and an existing output folder."
+		Return 0
+	EndIf
+	$sSource = _PathFull($sSource)
+	$sOutput = _PathFull($sOutput)
+	; A trailing backslash before a closing quote must be escaped on Windows.
+	If StringRight($sSource, 1) = "\" Then $sSource &= "\"
+	If StringRight($sOutput, 1) = "\" Then $sOutput &= "\"
+	Local $sCommand = '"' & $sCalibre & '" -e "' & $sHelper & '" -- ' & $sMode & ' "' & $sSource & '" "' & $sOutput & '" --naming ' & $sNaming
+	Local $iPID = Run($sCommand, @ScriptDir, @SW_HIDE, BitOR($STDOUT_CHILD, $STDERR_MERGED))
+	If Not $iPID Then $sMessage = "Unable to start calibre conversion."
+	Return $iPID
+EndFunc   ;==>__EpubMaker_StartConversion
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
 ; Name...........: __EpubMaker_OnSize
 ; Description ...: Schedules a layout update when Windows resizes the client area.
 ; Syntax.........: __EpubMaker_OnSize()
@@ -231,7 +473,7 @@ EndFunc   ;==>__EpubMaker_OnSize
 ; Example .......:
 ; ===============================================================================================================================
 Func __EpubMaker_LayoutAddressBar($iClientWidth, $iUrlLeft, $idURL, $idGo)
-	Local Const $iTop = 38, $iHeight = 26, $iGoWidth = 64, $iRightMargin = 24, $iGap = 8
+	Local Const $iTop = 68, $iHeight = 26, $iGoWidth = 64, $iRightMargin = 24, $iGap = 8
 	Local $iGoLeft = $iClientWidth - $iRightMargin - $iGoWidth
 	Local $iUrlWidth = $iGoLeft - $iGap - $iUrlLeft
 	If $iUrlWidth <= 0 Then Return
