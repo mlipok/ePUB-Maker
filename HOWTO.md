@@ -1,6 +1,20 @@
 # HOWTO
 
-## First prototype workflow
+## Convert a single saved file to EPUB
+
+1. Install calibre and keep `epub_convert.py` beside the app. Select `calibre-debug.exe` with **Calibre location...** if the standard installation is not detected.
+2. Open **Single file** and choose an HTML or MHTML file, or select it from the file list.
+3. Choose an output folder and click **Convert to EPUB**.
+
+## Convert a folder tree to EPUB
+
+1. Open **Batch processing** and choose the source folder and a separate, existing output folder.
+2. Choose the naming rule. The default produces `Almuric.epub` for a unique source name. If `Almuric.html` and `Almuric.mhtml` are in the same folder, the outputs are `Almuric.html.epub` and `Almuric.mhtml.epub`. Select **Always include the source extension in the EPUB name** to apply that naming rule to every file.
+3. Click **Convert folder to EPUB**. Use the progress bar and the summary to follow the work and review skipped or failed files.
+
+For example, `Archive\Books\Almuric.html` can produce `Archive_EPUB\Books\Almuric.epub`. Existing EPUBs are skipped, including when you run the same job again.
+
+## Extract resources for Sigil
 
 1. Start `EPUB_Maker.au3` with AutoIt 3, or run the compiled executable.
 2. Enter a URL in the browser address field and select **Go**, or use **Load HTML / MHTML folder**.
@@ -21,7 +35,7 @@ For each test case, keep:
 - the generated HTML file and `_files` folder;
 - the URL from which the page was saved, if it is available.
 
-The first prototype is a resource extractor, not yet a complete web-to-EPUB converter. It does not process MHTML or create the EPUB container, package metadata, XHTML spine, or table of contents.
+For EPUB conversion issues, also include the source file type, the calibre version and the details shown by ePUB Maker.
 
 ## Project instructions and local WebView2 UDF copy
 
