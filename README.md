@@ -18,7 +18,9 @@ The application is written in AutoIt and has an English user interface.
 
 For example, `Archive/Books/Almuric.html` becomes `Archive_EPUB/Books/Almuric.epub`. If the same folder also contains `Almuric.mhtml`, the outputs are `Almuric.html.epub` and `Almuric.mhtml.epub`. Select **Always include the source extension in the EPUB name** to use these qualified names for every file.
 
-Install calibre for EPUB conversion and keep `epub_convert.py` beside `EPUB_Maker.au3` or the compiled executable. For a portable installation, use **Calibre location...** to select `calibre-debug.exe`. The helper uses calibre's embedded Python runtime. See [calibre for Windows](https://calibre-ebook.com/download_windows) and [HOWTO](HOWTO.md).
+ePUB Maker uses calibre, a free and open-source tool, to convert files to EPUB. You can use calibre Portable without a system-wide installation. Download and extract it to a folder of your choice, then use **Calibre location...** in ePUB Maker to select `calibre-debug.exe` inside the portable folder. [Official calibre Portable download](https://calibre-ebook.com/download_portable) · [Standard Windows download](https://calibre-ebook.com/download_windows)
+
+Keep `epub_convert.py` beside `EPUB_Maker.au3` or the compiled executable. The helper uses calibre's embedded Python runtime. See [HOWTO](HOWTO.md).
 
 ## WebView2 UDF dependency
 
